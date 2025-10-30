@@ -1,47 +1,75 @@
 #include <stdio.h>
-#define MAX 10
-int main() {
-    int total, win, base = 0, next = 0;
-    int ack[MAX] = {0};
+#include <stdint.h>
+#include <string.h>
 
-    printf("Enter total number of frames: ");
-    scanf("%d", &total);
-    printf("Enter window size: ");
-    scanf("%d", &win);
+// CRC-12 polynomial = 0x180F
+uint16_t crc12(const uint8_t *data, int len) {
+    uint16_t crc = 0x000;
+    uint16_t poly = 0x180F;
 
-    while (base < total) {
+    for (int i = 0; i < len; i++) {
+        crc ^= (data[i] << 4); // Align data
 
-        // Send frames in window
-        while (next < base + win && next < total) {
-            if (!ack[next])
-                printf("Sender: Sent Frame %d\n", next);
-            next++;
+        for (int bit = 0; bit < 8; bit++) {
+            if (crc & 0x800)   // Check MSB (12th bit)
+                crc = (crc << 1) ^ poly;
+            else
+                crc <<= 1;
+
+            crc &= 0xFFF; // Keep CRC to 12 bits
         }
-
-        // Receiver input
-        int rcv;
-        printf("Receiver got frame number (-1 if lost): ");
-        scanf("%d", &rcv);
-
-        if (rcv >= 0 && rcv < total && !ack[rcv]) {
-            printf("Receiver: Frame %d received\n", rcv);
-            printf("Receiver: Ack sent %d\n", rcv);
-            ack[rcv] = 1;
-        }
-
-        // Sender receives ACK
-        int a;
-        printf("Sender got ack (-1 if none): ");
-        scanf("%d", &a);
-
-        if (a >= 0 && a < total && ack[a])
-            printf("Sender: Ack received %d\n", a);
-
-        // Slide window
-        while (base < total && ack[base])
-            base++;
     }
+    return crc;
+}
 
-    printf("\nAll frames sent and acknowledged!\n");
+// CRC-16 polynomial = 0x8005
+uint16_t crc16(const uint8_t *data, int len) {
+    uint16_t crc = 0x0000;
+    uint16_t poly = 0x8005;
+
+    for (int i = 0; i < len; i++) {
+        crc ^= (data[i] << 8);
+
+        for (int bit = 0; bit < 8; bit++) {
+            if (crc & 0x8000)
+                crc = (crc << 1) ^ poly;
+            else
+                crc <<= 1;
+        }
+    }
+    return crc;
+}
+
+// CRC-CCITT polynomial = 0x1021
+uint16_t crc_ccitt(const uint8_t *data, int len) {
+    uint16_t crc = 0xFFFF;
+    uint16_t poly = 0x1021;
+
+    for (int i = 0; i < len; i++) {
+        crc ^= (data[i] << 8);
+
+        for (int bit = 0; bit < 8; bit++) {
+            if (crc & 0x8000)
+                crc = (crc << 1) ^ poly;
+            else
+                crc <<= 1;
+        }
+    }
+    return crc;
+}
+
+int main() {
+    char input[128];
+
+    printf("Enter the data string: ");
+    scanf("%127s", input);
+
+    int length = strlen(input);
+
+    printf("\nCRC Results:\n");
+    printf("CRC-12:    0x%03X\n", crc12((uint8_t*)input, length));
+    printf("CRC-16:    0x%04X\n", crc16((uint8_t*)input, length));
+    printf("CRC-CCITT: 0x%04X\n", crc_ccitt((uint8_t*)input, length));
+
     return 0;
 }
